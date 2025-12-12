@@ -110,28 +110,25 @@ function loadLeaderboard(mode) {
   document.getElementById("allBtn").classList.toggle("active", mode === "all");
 
   const scores = {};
-const weekStart = getMondayStart(new Date());       // Monday 00:00 this week (local)
-const nextWeekStart = new Date(weekStart);
-nextWeekStart.setDate(nextWeekStart.getDate() + 7); // next Monday 00:00
 
-for (const r of rows) {
-  const player = String(r[headerIndex["Player"]] || "").trim();
-  const total = Number(r[headerIndex["DailyTotal"]]) || 0;
+  const weekStart = getMondayStart(new Date());
+  const nextWeekStart = new Date(weekStart);
+  nextWeekStart.setDate(nextWeekStart.getDate() + 7);
 
-  // Date column is like "2025-12-12"
-  const dateStr = String(r[headerIndex["Date"]] || "").trim();
-  const entryDate = parseLocalDate(dateStr);
+  for (const r of rows) {
+    const player = String(r[headerIndex["Player"]] || "").trim();
+    if (!player) continue;
 
-  if (!player) continue;
+    const total = Number(r[headerIndex["DailyTotal"]]) || 0;
 
-  if (mode === "week") {
-    if (!entryDate) continue;
-    if (entryDate < weekStart || entryDate >= nextWeekStart) continue;
-  }
+    if (mode === "week") {
+      const dateStr = String(r[headerIndex["Date"]] || "").trim();
+      const entryDate = parseLocalDate(dateStr);
+      if (!entryDate) continue;
+      if (entryDate < weekStart || entryDate >= nextWeekStart) continue;
+    }
 
-  scores[player] = (scores[player] || 0) + total;
-}
-
+    scores[player] = (scores[player] || 0) + total;
   }
 
   const ranked = Object.entries(scores).sort((a,b) => b[1] - a[1]);
@@ -144,14 +141,14 @@ for (const r of rows) {
     return;
   }
 
-  for (let i = 0; i < ranked.length; i++) {
-    const [name, score] = ranked[i];
+  ranked.forEach(([name, score], i) => {
     const div = document.createElement("div");
     div.className = "card";
     div.innerHTML = `<strong>#${i+1} ${escapeHtml(name)}</strong><span>${score}</span>`;
     list.appendChild(div);
-  }
+  });
 }
+
 
 function showMsg(msg) {
   document.getElementById("list").innerHTML =
