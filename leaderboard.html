@@ -59,53 +59,66 @@ h1 {
 </div>
 
 <div id="list"></div>
-
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZRRiqnFI0e_qMWqHt3GyFYioZV1Li-cJOYecEd1tRmALgZ-LQ73RVu_VYicyXLr2KNg/exec";
 
-let rawData = [];
+let rows = [];
+let headerIndex = {};
 
 fetch(SCRIPT_URL)
   .then(res => res.json())
   .then(data => {
-    // data should be a 2D array: [ [header...], [row...], [row...] ]
-    rawData = data.slice(1).filter(r => r && r.length >= 8 && String(r[3] || "").trim() !== "");
-    renderDebug(data.length, rawData.length);
-    loadLeaderboard('week');
+    if (!data || data.length < 2) {
+      showMsg("No data returned from the sheet yet.");
+      return;
+    }
+
+    // Build header -> column index map
+    const headers = data[0].map(h => String(h).trim());
+    headers.forEach((h, i) => headerIndex[h] = i);
+
+    // REQUIRED columns
+    const need = ["Player", "Week", "DailyTotal"];
+    const missing = need.filter(k => headerIndex[k] === undefined);
+    if (missing.length) {
+      showMsg("Missing columns: " + missing.join(", "));
+      console.log("Headers found:", headers);
+      return;
+    }
+
+    rows = data.slice(1).filter(r => r && r.length);
+
+    // small debug line so you know it loaded
+    const debug = document.createElement("p");
+    debug.style.textAlign = "center";
+    debug.style.color = "#666";
+    debug.textContent = `Loaded ${rows.length} entries.`;
+    document.body.insertBefore(debug, document.getElementById("list"));
+
+    loadLeaderboard("week");
   })
   .catch(err => {
-    document.getElementById("list").innerHTML = "<p>Could not load data.</p>";
+    showMsg("Could not load data (check SCRIPT_URL / deployment access).");
     console.error(err);
   });
 
-function renderDebug(totalRows, usableRows) {
-  const p = document.createElement("p");
-  p.style.textAlign = "center";
-  p.style.color = "#666";
-  p.style.marginTop = "-6px";
-  p.textContent = `Loaded ${usableRows} entries (${totalRows} rows including header).`;
-  document.body.insertBefore(p, document.getElementById("list"));
-}
-
 function loadLeaderboard(mode) {
-  document.getElementById("weekBtn").classList.toggle("active", mode === 'week');
-  document.getElementById("allBtn").classList.toggle("active", mode === 'all');
+  document.getElementById("weekBtn").classList.toggle("active", mode === "week");
+  document.getElementById("allBtn").classList.toggle("active", mode === "all");
 
   const scores = {};
   const currentWeek = getWeek(new Date());
 
-  rawData.forEach(row => {
-    // Expected columns:
-    // 0 Timestamp | 1 Date | 2 Week | 3 Player | 4 Gym | 5 Steps | 6 OMAD | 7 DailyTotal
-    const weekVal = Number(row[2]);       // force numeric
-    const player  = String(row[3]).trim();
-    const total   = Number(row[7]) || 0;
+  for (const r of rows) {
+    const player = String(r[headerIndex["Player"]] || "").trim();
+    const week = Number(r[headerIndex["Week"]]);
+    const total = Number(r[headerIndex["DailyTotal"]]) || 0;
 
-    if (!player) return;
-    if (mode === 'week' && weekVal !== currentWeek) return;
+    if (!player) continue;
+    if (mode === "week" && week !== currentWeek) continue;
 
     scores[player] = (scores[player] || 0) + total;
-  });
+  }
 
   const ranked = Object.entries(scores).sort((a,b) => b[1] - a[1]);
 
@@ -117,12 +130,18 @@ function loadLeaderboard(mode) {
     return;
   }
 
-  ranked.forEach(([name, score], i) => {
+  for (let i = 0; i < ranked.length; i++) {
+    const [name, score] = ranked[i];
     const div = document.createElement("div");
     div.className = "card";
     div.innerHTML = `<strong>#${i+1} ${escapeHtml(name)}</strong><span>${score}</span>`;
     list.appendChild(div);
-  });
+  }
+}
+
+function showMsg(msg) {
+  document.getElementById("list").innerHTML =
+    `<p style="text-align:center;color:#666;">${escapeHtml(msg)}</p>`;
 }
 
 function getWeek(date) {
@@ -134,11 +153,12 @@ function getWeek(date) {
 }
 
 function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => ({
+  return String(s).replace(/[&<>"']/g, c => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
   }[c]));
 }
 </script>
+
 
 </body>
 </html>
