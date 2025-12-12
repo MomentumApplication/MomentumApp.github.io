@@ -61,16 +61,31 @@ h1 {
 <div id="list"></div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxZRRiqnFI0e_qMWqHt3GyFYioZV1Li-cJOYecEd1tRmALgZ-LQ73RVu_VYicyXLr2KNg/exec";
+const SCRIPT_URL = "PASTE_YOUR_SCRIPT_URL_HERE";
 
 let rawData = [];
 
 fetch(SCRIPT_URL)
   .then(res => res.json())
   .then(data => {
-    rawData = data.slice(1); // remove header
+    // data should be a 2D array: [ [header...], [row...], [row...] ]
+    rawData = data.slice(1).filter(r => r && r.length >= 8 && String(r[3] || "").trim() !== "");
+    renderDebug(data.length, rawData.length);
     loadLeaderboard('week');
+  })
+  .catch(err => {
+    document.getElementById("list").innerHTML = "<p>Could not load data.</p>";
+    console.error(err);
   });
+
+function renderDebug(totalRows, usableRows) {
+  const p = document.createElement("p");
+  p.style.textAlign = "center";
+  p.style.color = "#666";
+  p.style.marginTop = "-6px";
+  p.textContent = `Loaded ${usableRows} entries (${totalRows} rows including header).`;
+  document.body.insertBefore(p, document.getElementById("list"));
+}
 
 function loadLeaderboard(mode) {
   document.getElementById("weekBtn").classList.toggle("active", mode === 'week');
@@ -80,21 +95,32 @@ function loadLeaderboard(mode) {
   const currentWeek = getWeek(new Date());
 
   rawData.forEach(row => {
-    const [ , date, week, player, , , , total ] = row;
-    if (mode === 'week' && week !== currentWeek) return;
-    scores[player] = (scores[player] || 0) + Number(total);
+    // Expected columns:
+    // 0 Timestamp | 1 Date | 2 Week | 3 Player | 4 Gym | 5 Steps | 6 OMAD | 7 DailyTotal
+    const weekVal = Number(row[2]);       // force numeric
+    const player  = String(row[3]).trim();
+    const total   = Number(row[7]) || 0;
+
+    if (!player) return;
+    if (mode === 'week' && weekVal !== currentWeek) return;
+
+    scores[player] = (scores[player] || 0) + total;
   });
 
-  const ranked = Object.entries(scores)
-    .sort((a,b) => b[1] - a[1]);
+  const ranked = Object.entries(scores).sort((a,b) => b[1] - a[1]);
 
   const list = document.getElementById("list");
   list.innerHTML = "";
 
+  if (ranked.length === 0) {
+    list.innerHTML = "<p style='text-align:center;color:#666;'>No entries yet for this view.</p>";
+    return;
+  }
+
   ranked.forEach(([name, score], i) => {
     const div = document.createElement("div");
     div.className = "card";
-    div.innerHTML = `<strong>#${i+1} ${name}</strong><span>${score}</span>`;
+    div.innerHTML = `<strong>#${i+1} ${escapeHtml(name)}</strong><span>${score}</span>`;
     list.appendChild(div);
   });
 }
@@ -105,6 +131,12 @@ function getWeek(date) {
   d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
   const week1 = new Date(d.getFullYear(),0,4);
   return 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
 }
 </script>
 
