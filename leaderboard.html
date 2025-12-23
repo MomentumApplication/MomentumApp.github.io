@@ -348,18 +348,29 @@ if (mode === "day") {
     const total = Number(r[headerIndex["DailyTotal"]]) || 0;
 
     // date filtering for day/week modes
-    let entryDate = null;
-    if (mode === "day" || mode === "week") {
-      entryDate = parseLocalDate(r[headerIndex["Date"]]);
-      if (!entryDate) continue;
+let entryDate = null;
 
-      if (mode === "day") {
-        if (entryDate < todayStart || entryDate >= tomorrowStart) continue;
-      }
-      if (mode === "week") {
-        if (entryDate < weekStart || entryDate >= nextWeekStart) continue;
-      }
-    }
+if (mode === "day") {
+  // Use Timestamp for "Today" (prevents the UTC day-shift problem)
+  const tsVal =
+    r[headerIndex["Timestamp"]] ??     // if your header is literally "Timestamp"
+    r[headerIndex["Time"]] ??          // if you named it something else
+    r[0];                              // fallback: first column is usually timestamp
+
+  entryDate = parseLocalDate(tsVal);
+  if (!entryDate) continue;
+
+  if (entryDate < todayStart || entryDate >= tomorrowStart) continue;
+}
+
+if (mode === "week") {
+  // Keep using Date for weekly grouping
+  entryDate = parseLocalDate(r[headerIndex["Date"]]);
+  if (!entryDate) continue;
+
+  if (entryDate < weekStart || entryDate >= nextWeekStart) continue;
+}
+
 
     // base score always sums DailyTotal
     baseScores[player] = (baseScores[player] || 0) + total;
