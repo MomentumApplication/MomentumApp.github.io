@@ -395,7 +395,7 @@ if (mode === "week") {
     }
   }
 
-  // compute bonuses (weekly view only)
+    // compute bonuses
   const bonusByPlayer = {};
   if (mode === "week") {
     for (const [player, sets] of Object.entries(weeklyDays)) {
@@ -404,12 +404,39 @@ if (mode === "week") {
       if (sets.gym.size  >= BONUS_GYM_DAYS)  bonus += BONUS_GYM_PTS;
       bonusByPlayer[player] = bonus;
     }
+  } else if (mode === "all") {
+    const weeksByPlayer = {};
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const player = String(r[headerIndex["Player"]] || "").trim();
+      if (!player) continue;
+
+      const entryDate = parseLocalDate(r[headerIndex["Date"]]);
+      if (!entryDate) continue;
+
+      const weekStart = getMondayStart(entryDate);
+      const weekKey = weekStart.toISOString().slice(0, 10);
+      if (!weeksByPlayer[player]) weeksByPlayer[player] = new Set();
+      weeksByPlayer[player].add(weekKey);
+    }
+
+    for (const [player, weekKeys] of Object.entries(weeksByPlayer)) {
+      let totalBonus = 0;
+      for (const weekKey of weekKeys) {
+        const weekStart = new Date(weekKey + "T00:00:00");
+        const nextWeekStart = new Date(weekStart);
+        nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+        totalBonus += computeWeeklyBonusForPlayer(weekStart, nextWeekStart, player);
+      }
+      bonusByPlayer[player] = totalBonus;
+    }
   }
+
 
   // ranked rows: include score + bonus so we can display it
   const ranked = Object.entries(baseScores)
     .map(([name, base]) => {
-      const bonus = (mode === "week") ? (bonusByPlayer[name] || 0) : 0;
+      const bonus = (mode === "week" || mode === "all") ? (bonusByPlayer[name] || 0) : 0;
       return { name, base, bonus, score: base + bonus };
     })
     .sort((a, b) => b.score - a.score);
@@ -429,9 +456,10 @@ ranked.forEach((row, idx) => {
   div.onclick = () => openHistory(row.name);
 
   const bonusText =
-    (mode === "week" && row.bonus > 0)
-      ? `<span style="color:#666;font-weight:600;"> (+${row.bonus})</span>`
-      : "";
+  ((mode === "week" || mode === "all") && row.bonus > 0)
+    ? `<span style="color:#666;font-weight:600;"> (+${row.bonus})</span>`
+    : "";
+
 
   div.innerHTML = `
     <strong>#${idx + 1} ${escapeHtml(row.name)}</strong>
