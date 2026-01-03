@@ -508,7 +508,7 @@ function openHistory(playerName) {
 const tsVal =
   r[headerIndex["Timestamp"]] ??
   r[headerIndex["Time"]] ??
-  r[0]; // fallback: first column usually is timestamp
+  r[0]; // fallback: first column is usually timestamp
 
 const d = new Date(tsVal);
 const entryDate = isNaN(d.getTime())
