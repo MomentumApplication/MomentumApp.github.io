@@ -517,15 +517,23 @@ const entryDate = isNaN(d.getTime())
 
 
     const total = Number(r[headerIndex["DailyTotal"]]) || 0;
-    const gym   = Number(r[headerIndex["Gym"]]) === 1;
-    const steps = Number(r[headerIndex["Steps"]]) === 1;
-    const omad  = Number(r[headerIndex["OMAD"]]) === 1;
+    const gym      = Number(r[headerIndex["Gym"]]) === 1;
+    const steps    = Number(r[headerIndex["Steps"]]) === 1;
+    const omad     = Number(r[headerIndex["OMAD"]]) === 1;
+    const calories = Number(r[headerIndex["Calories"]]) === 1;
+    const steps10k = Number(r[headerIndex["Steps10k"]]) === 1;
+    const steps6k  = Number(r[headerIndex["Steps6k"]]) === 1;
+    const nocarb   = Number(r[headerIndex["NoCarb"]]) === 1;
 
     // Build pills
     const pills = [];
     if (gym) pills.push("Gym");
     if (steps) pills.push("Cardio");
     if (omad) pills.push("Diet");
+    if (calories) pills.push("Calorie tracking");
+    if (steps10k) pills.push("10k steps");
+    if (steps6k) pills.push("6k steps");
+    if (nocarb) pills.push("No carb day");
 
     // Weekly bonus pill (based on the week this entry falls in)
     let weeklyBonus = 0;
